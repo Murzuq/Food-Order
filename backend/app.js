@@ -1,4 +1,4 @@
-import fs from "node:fs/promises";
+import { promises as fs } from "fs";
 
 import bodyParser from "body-parser";
 import express from "express";
@@ -16,50 +16,67 @@ app.use((req, res, next) => {
 });
 
 app.get("/meals", async (req, res) => {
-  const meals = await fs.readFile("./data/available-meals.json", "utf8");
-  res.json(JSON.parse(meals));
+  try {
+    const meals = await fs.readFile("./data/available-meals.json", "utf8");
+    return res.json(JSON.parse(meals));
+  } catch (err) {
+    console.error("Error reading meals file:", err);
+    return res.status(500).json({ message: "Failed to load meals." });
+  }
 });
 
 app.post("/orders", async (req, res) => {
-  const orderData = req.body.order;
+  try {
+    const orderData = req.body && req.body.order;
 
-  await new Promise((resolve) => setTimeout(resolve, 1000));
+    // Validate orderData and items
+    if (
+      !orderData ||
+      !Array.isArray(orderData.items) ||
+      orderData.items.length === 0
+    ) {
+      return res
+        .status(400)
+        .json({ message: "Missing or invalid order data." });
+    }
 
-  if (
-    orderData === null ||
-    orderData.items === null ||
-    orderData.items.length === 0
-  ) {
-    return res.status(400).json({ message: "Missing data." });
+    const customer = orderData.customer || {};
+    const email = customer.email || "";
+    const name = customer.name || "";
+    const street = customer.street || "";
+    const postal = customer["postal-code"] || "";
+    const city = customer.city || "";
+
+    if (
+      !email.includes("@") ||
+      name.trim() === "" ||
+      street.trim() === "" ||
+      postal.trim() === "" ||
+      city.trim() === ""
+    ) {
+      return res.status(400).json({
+        message:
+          "Missing data: Email, name, street, postal code or city is missing.",
+      });
+    }
+
+    const newOrder = {
+      ...orderData,
+      id: (Math.random() * 1000).toString(),
+    };
+
+    const ordersRaw = await fs.readFile("./data/orders.json", "utf8");
+    const allOrders = JSON.parse(ordersRaw || "[]");
+    allOrders.push(newOrder);
+    await fs.writeFile(
+      "./data/orders.json",
+      JSON.stringify(allOrders, null, 2)
+    );
+    return res.status(201).json({ message: "Order created!" });
+  } catch (err) {
+    console.error("Error in /orders:", err);
+    return res.status(500).json({ message: "Internal server error." });
   }
-
-  if (
-    orderData.customer.email === null ||
-    !orderData.customer.email.includes("@") ||
-    orderData.customer.name === null ||
-    orderData.customer.name.trim() === "" ||
-    orderData.customer.street === null ||
-    orderData.customer.street.trim() === "" ||
-    orderData.customer["postal-code"] === null ||
-    orderData.customer["postal-code"].trim() === "" ||
-    orderData.customer.city === null ||
-    orderData.customer.city.trim() === ""
-  ) {
-    return res.status(400).json({
-      message:
-        "Missing data: Email, name, street, postal code or city is missing.",
-    });
-  }
-
-  const newOrder = {
-    ...orderData,
-    id: (Math.random() * 1000).toString(),
-  };
-  const orders = await fs.readFile("./data/orders.json", "utf8");
-  const allOrders = JSON.parse(orders);
-  allOrders.push(newOrder);
-  await fs.writeFile("./data/orders.json", JSON.stringify(allOrders));
-  res.status(201).json({ message: "Order created!" });
 });
 
 app.use((req, res) => {
@@ -70,4 +87,7 @@ app.use((req, res) => {
   res.status(404).json({ message: "Not found" });
 });
 
-app.listen(3000);
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(`Server listening on port ${PORT}`);
+});
