@@ -88,6 +88,13 @@ app.use((req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
+
+const server = app.listen(PORT, () => {
   console.log(`Server listening on port ${PORT}`);
+});
+
+server.on("error", (err) => {
+  console.error("Server failed to start:", err);
+  // exit the process so platform (Render) sees the failure clearly
+  process.exit(1);
 });
