@@ -50,8 +50,8 @@ Follow these instructions to get the project running on your local machine.
 ### 1. Clone the Repository
 
 ```sh
-git clone https://github.com/your-username/food-order-app.git
-cd food-order-app
+git clone https://github.com/Murzuq/food-order.git
+cd food-order
 ```
 
 ### 2. Install Backend Dependencies
